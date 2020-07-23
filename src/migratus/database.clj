@@ -272,8 +272,9 @@
                   (migration-table-name config)
                   (get config :modify-sql-fn identity)))
   (disconnect [this]
-    (disconnect* @connection)
-    (reset! connection nil)))
+    (when-not (get-in config [:db :managed-connection])
+      (disconnect* @connection)
+      (reset! connection nil))))
 
 (defmethod proto/make-store :database
   [config]

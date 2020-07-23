@@ -171,6 +171,27 @@ It is possible to pass a `java.sql.Connection` or `javax.sql.DataSource` in plac
 (def config {:db {:datasource (hk/make-datasource datasource-options)}})
 ```
 
+You can prevent Migratus from closing the connection by passing `:managed-connection true` to the `:db` config.
+One case where this is useful is for testing with in-memory databases, which are destroyed when the connection is closed.
+
+``` clojure
+(def ds (jdbc/get-datasource "jdbc:sqlite::memory:"))
+(def con-atom (atom nil))
+(defn with-test-db [t]
+  (with-open [con (jdbc/get-connection ds)]
+    (reset! con-atom con)
+    (migratus/migrate {:migration-dir "migrations/"
+                       :store :database
+                       :db {:connection con
+                            :managed-connection true}})
+    (t)))
+(t/use-fixtures :each with-test-db)
+(deftest some-test
+  (is (= [] (jdbc/execute! @con-atom ["SELECT * FROM user"]))))
+(t/run-tests)
+;; => {:test 1, :pass 1, :fail 0, :error 0, :type :summary}
+```
+
 #### Running as native image (Postgres only)
 
 [PGMig](https://github.com/leafclick/pgmig) is a standalone tool built with migratus that's compiled as a standalone GraalVM native image executable.
